@@ -22,6 +22,7 @@ let read_all_input inputfile =
 
 let module_for_day day : (module Aoc.Day_intf.Intf) =
   match day with
+  (* TODO: make more folders and map them all here *)
   | "01" -> (module Aoc.Day_01)
   | _ -> print_usage_and_exit ()
 
