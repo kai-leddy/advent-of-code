@@ -15,8 +15,9 @@ Place the input in the `inputs/` folder with the naming convention `day_<day>.tx
 Run the executable with the day and part as arguments.
 
 ```sh
-# e.g. dune exec aoc <day> <part>
+# e.g. dune exec aoc <day> <part> [example]
 dune exec aoc 1 1
+dune exec aoc 1 2 example
 ```
 
 ## Testing
