@@ -1,4 +1,5 @@
-let part1 _ = ()
+let part1 inputfile = 
+  Printf.printf "part1: %s\n" inputfile
 
 let part2 _ = ()
 
