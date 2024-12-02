@@ -1,0 +1,23 @@
+(lang dune 3.17)
+
+(name aoc)
+
+(generate_opam_files true)
+
+(source
+ (github username/reponame))
+
+(authors "Kai Leddy <epickaimail@gmail.com>")
+
+(maintainers "Kai Leddy <epickaimail@gmail.com>")
+
+(license "LICENSE")
+
+(package
+ (name aoc)
+ (synopsis "Advent of Code 2024")
+ (description "Advent of Code 2024")
+ (depends ocaml ppx_expect))
+
+; See the complete stanza docs at https://dune.readthedocs.io/en/stable/reference/dune-project/index.html
+
