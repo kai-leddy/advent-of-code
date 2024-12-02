@@ -1,5 +1,4 @@
-(include_subdirs qualified)
 (library
- (name aoc)
- (inline_tests)
- (preprocess (pps ppx_expect)))
+ (name aoc))
+
+(include_subdirs qualified)

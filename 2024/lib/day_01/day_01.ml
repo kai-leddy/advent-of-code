@@ -1,9 +1,9 @@
-let part1 input = Printf.printf "%s\n" (List.fold_left (fun acc a -> acc ^ a) "" input)
+let part1 input = 
+  let len = string_of_int (List.length input) in
+  Printf.printf "%s\n" len
 
-let part2 _ = ()
+let part2 input = 
+  let len = string_of_int (0 - List.length input) in
+  Printf.printf "%s\n" len
 
-let example = [ "Hello, World!" ]
-
-let%expect_test "example" =
-  part1 example;
-  [%expect {| Hello, World! |}]
+let example = [ "Hello"; "World" ]
