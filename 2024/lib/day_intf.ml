@@ -1,4 +1,4 @@
 module type Intf = sig
-  val part1 : string -> unit
-  val part2 : string -> unit
+  val part1 : string list -> unit
+  val part2 : string list -> unit
 end
