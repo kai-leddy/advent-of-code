@@ -1,5 +1,5 @@
 let part1 inputfile = 
-  Printf.printf "part1: %s\n" inputfile
+  Printf.printf "\npart1: %s\n" inputfile
 
 let part2 _ = ()
 
