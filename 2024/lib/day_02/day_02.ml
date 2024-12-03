@@ -1,7 +1,7 @@
 let parse_all input = 
   let parse line = 
     String.split_on_char ' ' line 
-    |> List.filter (fun i -> String.length i != 0)
+    |> List.filter (fun i -> String.length i > 0)
     |> List.map int_of_string
   in
   List.map parse input
@@ -14,30 +14,29 @@ let small_diff a b =
   | _ -> false
 ;;
 
-let rec small_diffs r t =
-   match r with 
-   | a :: b :: tl when small_diff a b -> (small_diffs (b :: tl) t) 
+let rec small_diffs ?(acc=true) record =
+   match record with 
+   | a :: b :: tl when small_diff a b -> (small_diffs (b :: tl) ~acc) 
    | a :: b :: _ when not (small_diff a b) -> false 
-   | _ -> t 
+   | _ -> acc 
 ;; 
 
-let rec is_increasing r t =
-   match r with 
-   | a :: b :: tl when a < b -> (is_increasing (b :: tl) t) 
+let rec is_increasing ?(acc=true) record =
+   match record with 
+   | a :: b :: tl when a < b -> (is_increasing (b :: tl) ~acc) 
    | a :: b :: _ when a > b -> false 
-   | _ -> t 
+   | _ -> acc 
 ;; 
 
-let rec is_decreasing r t =
-   match r with 
-   | a :: b :: tl when a > b -> (is_decreasing (b :: tl) t) 
+let rec is_decreasing ?(acc=true) record =
+   match record with 
+   | a :: b :: tl when a > b -> (is_decreasing (b :: tl) ~acc) 
    | a :: b :: _ when a < b -> false 
-   | _ -> t 
+   | _ -> acc 
 ;; 
 
 let safe report =
-  small_diffs report true 
-    && (is_increasing report true || is_decreasing report true)
+  small_diffs report && (is_increasing report || is_decreasing report)
 ;;
 
 let part1 input = 
