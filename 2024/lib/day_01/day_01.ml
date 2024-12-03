@@ -10,18 +10,29 @@ let parse_all input =
     |> items_to_num_tuple 
   in
   List.map parse input
+;;
 
 let part1 input = 
   let left, right = parse_all input |> List.split in
   let left, right = (List.sort compare left, List.sort compare right) in
   let ordered_tuples = List.combine left right in
   let diffs = ordered_tuples |> List.map (fun (a,b) -> Int.abs (b - a)) in
-  let sum = List.fold_left (+) 0 diffs in
+  let sum = diffs |> List.fold_left (+) 0 in
   Printf.printf "\n%s\n" (string_of_int sum)
+;;
+
+let occurences_in list item =
+  let count acc x = if x = item then succ acc else acc in
+  list |> List.fold_left count 0
+;;
 
 let part2 input = 
-  let len = string_of_int (0 - List.length input) in
-  Printf.printf "\n%s\n" len
+  let left, right = parse_all input |> List.split in
+  let occurences = left |> List.map (occurences_in right) in
+  let similarity_scores = List.map2 ( * ) left occurences in
+  let sum = similarity_scores |> List.fold_left (+) 0 in
+  Printf.printf "\n%s\n" (string_of_int sum)
+;;
 
 let example = [
   "3   4";
@@ -30,4 +41,4 @@ let example = [
   "1   3";
   "3   9";
   "3   3";
-]
+];;
