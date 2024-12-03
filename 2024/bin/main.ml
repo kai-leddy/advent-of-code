@@ -22,8 +22,31 @@ let read_all_input inputfile =
 
 let module_for_day day : (module Aoc.Day_intf.Intf) =
   match day with
-  (* TODO: make more folders and map them all here *)
   | "01" -> (module Aoc.Day_01)
+  | "02" -> (module Aoc.Day_02)
+  | "03" -> (module Aoc.Day_03)
+  | "04" -> (module Aoc.Day_04)
+  | "05" -> (module Aoc.Day_05)
+  | "06" -> (module Aoc.Day_06)
+  | "07" -> (module Aoc.Day_07)
+  | "08" -> (module Aoc.Day_08)
+  | "09" -> (module Aoc.Day_09)
+  | "10" -> (module Aoc.Day_10)
+  | "11" -> (module Aoc.Day_11)
+  | "12" -> (module Aoc.Day_12)
+  | "13" -> (module Aoc.Day_13)
+  | "14" -> (module Aoc.Day_14)
+  | "15" -> (module Aoc.Day_15)
+  | "16" -> (module Aoc.Day_16)
+  | "17" -> (module Aoc.Day_17)
+  | "18" -> (module Aoc.Day_18)
+  | "19" -> (module Aoc.Day_19)
+  | "20" -> (module Aoc.Day_20)
+  | "21" -> (module Aoc.Day_21)
+  | "22" -> (module Aoc.Day_22)
+  | "23" -> (module Aoc.Day_23)
+  | "24" -> (module Aoc.Day_24)
+  | "25" -> (module Aoc.Day_25)
   | _ -> print_usage_and_exit ()
 
 let () = 

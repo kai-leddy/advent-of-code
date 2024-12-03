@@ -11,7 +11,8 @@ dune build
 
 ## Usage
 
-Place the input in the `inputs/` folder with the naming convention `day_<day>.txt`, e.g. `day_01.txt`.
+Place the input in the `inputs/` folder with the naming convention `day_<day>.txt`,
+e.g. `day_01.txt`.
 Run the executable with the day and part as arguments.
 
 ```sh
