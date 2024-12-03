@@ -45,9 +45,17 @@ let part1 input =
   reports |> List.filter safe |> List.length |> string_of_int |> Printf.printf "\n%s\n" 
 ;;
 
+let dampener fn report =
+  let not_index i j _ = i != j in
+  let list_without_index i _ = List.filteri (not_index i) report in
+  let permutations = List.mapi list_without_index report in
+  List.exists fn permutations
+;;
+
 let part2 input = 
-  let len = string_of_int (0 - List.length input) in
-  Printf.printf "\n%s\n" len
+  let reports = parse_all input in
+  let safe_with_dampener report = safe report || dampener safe report in
+  reports |> List.filter safe_with_dampener |> List.length |> string_of_int |> Printf.printf "\n%s\n" 
 ;;
 
 let example = [ 
