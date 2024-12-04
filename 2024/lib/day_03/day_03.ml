@@ -1,10 +1,15 @@
 let parse_muls input =
   let rec parse ?(acc=[]) line = 
     let scanner a b = (a, b) :: acc in
+    let next = 
+      if String.length line > 0 
+      then String.sub line 1 (String.length line - 1) 
+      else "" 
+    in
     match (Scanf.sscanf line "mul(%d,%d)" scanner)
     with
-    | xs -> parse ~acc:xs (String.sub line 1 (String.length line - 1))
-    | exception Scanf.Scan_failure _ -> parse ~acc (String.sub line 1 (String.length line - 1))
+    | xs -> parse ~acc:xs next
+    | exception Scanf.Scan_failure _ -> parse ~acc next
     | exception _ -> acc
   in
   input |> List.map parse |> List.flatten
