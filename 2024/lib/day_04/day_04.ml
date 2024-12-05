@@ -11,11 +11,13 @@ let scan_matrix fn input =
   done
 ;;
 
+let lookup matrix x y = 
+  try List.nth (List.nth matrix y) x 
+  with _ -> ' '
+;;
+
 let scan_for_xmas matrix count = 
-  let lookup x y = 
-    try List.nth (List.nth matrix y) x 
-    with _ -> ' '
-  in
+  let lookup = lookup matrix in
   let scanning_fn cell x y = 
     (* only test if the current cell is an X *)
     if cell = 'X' then (
@@ -41,9 +43,28 @@ let part1 input =
   Printf.printf "\n%d\n" !count
 ;;
 
+let scan_for_x_mas matrix count = 
+  let lookup = lookup matrix in
+  let scanning_fn cell x y = 
+    (* only test if the current cell is an A *)
+    if cell = 'A' then (
+      (* check for northwest/southeast match *)
+      if (lookup (x + 1) (y + 1) = 'M' && lookup (x - 1) (y - 1) = 'S')
+      || (lookup (x + 1) (y + 1) = 'S' && lookup (x - 1) (y - 1) = 'M')
+      then
+      (* check for northeast/southwest match *)
+      if (lookup (x + 1) (y - 1) = 'M' && lookup (x - 1) (y + 1) = 'S')
+      || (lookup (x + 1) (y - 1) = 'S' && lookup (x - 1) (y + 1) = 'M')
+      then incr count;
+    )
+  in scanning_fn
+;;
+
 let part2 input = 
-  let len = string_of_int (0 - List.length input) in
-  Printf.printf "\n%s\n" len
+  let matrix = input |> List.map string_to_char_list in
+  let count = ref 0 in
+  scan_matrix (scan_for_x_mas matrix count) matrix;
+  Printf.printf "\n%d\n" !count
 ;;
 
 let example = [ 
