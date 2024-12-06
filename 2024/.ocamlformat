@@ -1,0 +1,3 @@
+version = 0.26.2
+profile = default
+let-binding-spacing = double-semicolon
