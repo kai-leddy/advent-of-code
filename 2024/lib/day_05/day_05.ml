@@ -39,9 +39,34 @@ let part1 input =
   middles |> List.fold_left ( + ) 0 |> Printf.printf "\n%d\n"
 ;;
 
+let apply_rule page (l, r) =
+  let l_i = List.find_index (( = ) l) page in
+  let r_i = List.find_index (( = ) r) page in
+  match l_i with
+  | Some l_i -> (
+      match r_i with
+      | Some r_i when l_i < r_i -> page
+      | Some _ -> l :: List.filteri (fun i _ -> i != l_i) page
+      | None -> page)
+  | None -> page
+;;
+
+let apply_all_rules page rules = List.fold_left apply_rule page rules
+
+let rec reorder_page rules page =
+  if is_valid_page rules page then page
+  else reorder_page rules (apply_all_rules page rules)
+;;
+
 let part2 input =
-  let len = string_of_int (0 - List.length input) in
-  Printf.printf "\n%s\n" len
+  let rules, input = parse_rules input in
+  let pages = parse_pages input in
+  let invalid_pages = pages |> List.filter (Fun.negate (is_valid_page rules)) in
+  let invalid_pages = invalid_pages |> List.map (reorder_page rules) in
+  let middles =
+    invalid_pages |> List.map (fun x -> List.nth x (List.length x / 2))
+  in
+  middles |> List.fold_left ( + ) 0 |> Printf.printf "\n%d\n"
 ;;
 
 let example =
