@@ -1,6 +1,12 @@
 type map = char array array
 type direction = N | E | S | W
-type t = { map : map; mutable pos : int * int; mutable dir : direction }
+
+type t = {
+  map : map;
+  mutable pos : int * int;
+  mutable dir : direction;
+  mutable hist : (int * int * direction) list;
+}
 
 let _pp (state : t) =
   CCArray.pp ~pp_sep:CCFormat.newline ~pp_stop:CCFormat.newline
@@ -29,29 +35,36 @@ let is_in_bounds (state : t) : bool =
   | _ -> true
 ;;
 
-let traverse (state : t) =
-  while is_in_bounds state do
+let traverse (state : t) : bool =
+  let is_loop = ref false in
+  while is_in_bounds state && not !is_loop do
     let y, x = state.pos in
-    state.map.(y).(x) <- 'X';
-    (* _pp state; *)
-    match state.dir with
-    | N ->
-        if try state.map.(y - 1).(x) != '#' with _ -> true then
-          state.pos <- (y - 1, x)
-        else state.dir <- E
-    | E ->
-        if try state.map.(y).(x + 1) != '#' with _ -> true then
-          state.pos <- (y, x + 1)
-        else state.dir <- S
-    | S ->
-        if try state.map.(y + 1).(x) != '#' with _ -> true then
-          state.pos <- (y + 1, x)
-        else state.dir <- W
-    | W ->
-        if try state.map.(y).(x - 1) != '#' with _ -> true then
-          state.pos <- (y, x - 1)
-        else state.dir <- N
-  done
+    if List.mem (y, x, state.dir) state.hist then is_loop := true
+    else (
+      state.map.(y).(x) <- 'X';
+      state.hist <- (y, x, state.dir) :: state.hist;
+      (* _pp state; *)
+      match state.dir with
+      | N ->
+          if try state.map.(y - 1).(x) != '#' with _ -> true then
+            state.pos <- (y - 1, x)
+          else state.dir <- E
+      | E ->
+          if try state.map.(y).(x + 1) != '#' with _ -> true then
+            state.pos <- (y, x + 1)
+          else state.dir <- S
+      | S ->
+          if try state.map.(y + 1).(x) != '#' with _ -> true then
+            state.pos <- (y + 1, x)
+          else state.dir <- W
+      | W ->
+          if try state.map.(y).(x - 1) != '#' with _ -> true then
+            state.pos <- (y, x - 1)
+          else state.dir <- N)
+  done;
+  Printf.printf ".";
+  flush Stdlib.stdout;
+  !is_loop
 ;;
 
 let count_traversed (state : t) : int =
@@ -64,14 +77,38 @@ let count_traversed (state : t) : int =
 let part1 input =
   let m = parse_map input in
   let p = find_start_pos m in
-  let state : t = { map = m; pos = p; dir = N } in
-  traverse state;
+  let state : t = { map = m; pos = p; dir = N; hist = [] } in
+  let _ = traverse state in
   Printf.printf "\n%d\n" (count_traversed state)
 ;;
 
+let clone_map (map : map) : map = map |> Array.map Array.copy
+
+let permutations (map : map) : map Iter.t =
+  let perms = ref [] in
+  for y = 0 to Array.length map - 1 do
+    for x = 0 to Array.length map.(0) - 1 do
+      (* Check against 'X' so we only test positions in the guard's path *)
+      if map.(y).(x) = 'X' then (
+        let m = clone_map map in
+        m.(y).(x) <- '#';
+        perms := m :: !perms)
+    done
+  done;
+  Printf.printf "\nGenerated %d permutations\n" (List.length !perms);
+  flush Stdlib.stdout;
+  Iter.of_list !perms
+;;
+
 let part2 input =
-  let len = string_of_int (0 - List.length input) in
-  Printf.printf "\n%s\n" len
+  let m = parse_map input in
+  let p = find_start_pos m in
+  let orig = { map = m; pos = p; dir = N; hist = [] } in
+  let _ = traverse orig in
+  permutations orig.map
+  |> Iter.map (fun map -> { map; pos = p; dir = N; hist = [] })
+  |> Iter.map traverse |> Iter.filter Fun.id |> Iter.length
+  |> Printf.printf "\n%d\n"
 ;;
 
 let example =
