@@ -1,11 +1,17 @@
 type map = char array array
 type direction = N | E | S | W
 
+module Hist = Set.Make (struct
+  type t = int * int * direction
+
+  let compare = Stdlib.compare
+end)
+
 type t = {
   map : map;
   mutable pos : int * int;
   mutable dir : direction;
-  mutable hist : (int * int * direction) list;
+  mutable hist : Hist.t;
 }
 
 let _pp (state : t) =
@@ -26,23 +32,24 @@ let find_start_pos map =
   | None -> failwith "Could not find starting pos"
 ;;
 
-let is_in_bounds (state : t) : bool =
-  match state.pos with
+let is_in_bounds (map : map) (pos : int * int) : bool =
+  match pos with
   | _, x when x < 0 -> false
   | y, _ when y < 0 -> false
-  | _, x when x >= Array.length state.map.(0) -> false
-  | y, _ when y >= Array.length state.map -> false
+  | _, x when x >= Array.length map.(0) -> false
+  | y, _ when y >= Array.length map -> false
   | _ -> true
 ;;
 
 let traverse (state : t) : bool =
+  let in_bounds = is_in_bounds state.map in
   let is_loop = ref false in
-  while is_in_bounds state && not !is_loop do
+  while in_bounds state.pos && not !is_loop do
     let y, x = state.pos in
-    if List.mem (y, x, state.dir) state.hist then is_loop := true
+    if Hist.mem (y, x, state.dir) state.hist then is_loop := true
     else (
       state.map.(y).(x) <- 'X';
-      state.hist <- (y, x, state.dir) :: state.hist;
+      state.hist <- Hist.add (y, x, state.dir) state.hist;
       (* _pp state; *)
       match state.dir with
       | N ->
@@ -77,7 +84,7 @@ let count_traversed (state : t) : int =
 let part1 input =
   let m = parse_map input in
   let p = find_start_pos m in
-  let state : t = { map = m; pos = p; dir = N; hist = [] } in
+  let state : t = { map = m; pos = p; dir = N; hist = Hist.empty } in
   let _ = traverse state in
   Printf.printf "\n%d\n" (count_traversed state)
 ;;
@@ -114,10 +121,10 @@ let permutations (m : map) : map Iter.t =
 let part2 input =
   let m = parse_map input in
   let p = find_start_pos m in
-  let orig = { map = m; pos = p; dir = N; hist = [] } in
+  let orig = { map = m; pos = p; dir = N; hist = Hist.empty } in
   let _ = traverse orig in
   permutations orig.map
-  |> Iter.map (fun map -> { map; pos = p; dir = N; hist = [] })
+  |> Iter.map (fun map -> { map; pos = p; dir = N; hist = Hist.empty })
   |> Iter.map traverse |> Iter.filter Fun.id |> Iter.length
   |> Printf.printf "\n%d\n"
 ;;
