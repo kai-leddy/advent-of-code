@@ -1,5 +1,5 @@
 (library
  (name aoc)
- (libraries containers))
+ (libraries containers iter))
 
 (include_subdirs qualified)

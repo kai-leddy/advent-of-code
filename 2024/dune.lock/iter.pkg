@@ -1,0 +1,12 @@
+(version 1.8)
+
+(build
+ (run dune build @install -p %{pkg-self:name} -j %{jobs}))
+
+(depends ocaml dune base-bigarray)
+
+(source
+ (fetch
+  (url https://github.com/c-cube/iter/releases/download/v1.8/iter-1.8.tbz)
+  (checksum
+   sha256=f8739ca05ae9c4ba8aa20c0d4197e74409f2b659a17f12730d42af1fd9f43023)))
