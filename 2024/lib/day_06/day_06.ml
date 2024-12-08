@@ -84,21 +84,32 @@ let part1 input =
 
 let clone_map (map : map) : map = map |> Array.map Array.copy
 
-let permutations (map : map) : map Iter.t =
-  let perms = ref [] in
-  for y = 0 to Array.length map - 1 do
-    for x = 0 to Array.length map.(0) - 1 do
-      (* Check against 'X' so we only test positions in the guard's path *)
-      if map.(y).(x) = 'X' then (
-        let m = clone_map map in
-        m.(y).(x) <- '#';
-        perms := m :: !perms)
-    done
-  done;
-  Printf.printf "\nGenerated %d permutations\n" (List.length !perms);
-  flush Stdlib.stdout;
-  Iter.of_list !perms
+let permutations (m : map) : map Iter.t =
+  Iter.(0 -- (Array.length m - 1))
+  |> Iter.flat_map (fun y ->
+         Iter.(0 -- (Array.length m.(0) - 1))
+         |> Iter.map (fun x ->
+                if m.(y).(x) = 'X' then (
+                  let m' = clone_map m in
+                  m'.(y).(x) <- '#';
+                  Some m')
+                else None))
+  |> Iter.filter_map Fun.id
 ;;
+
+(* let perms = ref [] in *)
+(* for y = 0 to Array.length map - 1 do *)
+(*   for x = 0 to Array.length map.(0) - 1 do *)
+(*     (* Check against 'X' so we only test positions in the guard's path *) *)
+(*     if map.(y).(x) = 'X' then ( *)
+(*       let m = clone_map map in *)
+(*       m.(y).(x) <- '#'; *)
+(*       perms := m :: !perms) *)
+(*   done *)
+(* done; *)
+(* Printf.printf "\nGenerated %d permutations\n" (List.length !perms); *)
+(* flush Stdlib.stdout; *)
+(* Iter.of_list !perms *)
 
 let part2 input =
   let m = parse_map input in
