@@ -2,10 +2,10 @@ type map = char array array
 type direction = N | E | S | W
 type t = { map : map; mutable pos : int * int; mutable dir : direction }
 
-let pp (state : t) =
+let _pp (state : t) =
   CCArray.pp ~pp_sep:CCFormat.newline ~pp_stop:CCFormat.newline
     ~pp_start:CCFormat.newline
-    (CCFormat.array CCFormat.char)
+    (CCFormat.array ~sep:CCFormat.pp_print_nothing CCFormat.char)
     Format.std_formatter state.map
 ;;
 
@@ -30,26 +30,26 @@ let is_in_bounds (state : t) : bool =
 ;;
 
 let traverse (state : t) =
-  let c = ref 0 in
   while is_in_bounds state do
-    pp state;
-    (* TODO: remove this debugging code *)
-    incr c;
-    if !c > 10 then failwith "test";
     let y, x = state.pos in
     state.map.(y).(x) <- 'X';
+    (* _pp state; *)
     match state.dir with
     | N ->
-        if state.map.(y - 1).(x) = '.' then state.pos <- (y - 1, x)
+        if try state.map.(y - 1).(x) != '#' with _ -> true then
+          state.pos <- (y - 1, x)
         else state.dir <- E
     | E ->
-        if state.map.(y).(x + 1) = '.' then state.pos <- (y, x + 1)
+        if try state.map.(y).(x + 1) != '#' with _ -> true then
+          state.pos <- (y, x + 1)
         else state.dir <- S
     | S ->
-        if state.map.(y + 1).(x) = '.' then state.pos <- (y + 1, x)
+        if try state.map.(y + 1).(x) != '#' with _ -> true then
+          state.pos <- (y + 1, x)
         else state.dir <- W
     | W ->
-        if state.map.(y).(x - 1) = '.' then state.pos <- (y, x - 1)
+        if try state.map.(y).(x - 1) != '#' with _ -> true then
+          state.pos <- (y, x - 1)
         else state.dir <- N
   done
 ;;
