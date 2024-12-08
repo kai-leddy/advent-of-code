@@ -12,6 +12,7 @@ depends: [
   "ocaml"
   "containers"
   "iter"
+  "angstrom"
   "odoc" {with-doc}
 ]
 build: [
