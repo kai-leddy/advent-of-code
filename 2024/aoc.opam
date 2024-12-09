@@ -11,6 +11,7 @@ depends: [
   "dune" {>= "3.17"}
   "ocaml"
   "containers"
+  "containers-data"
   "iter"
   "angstrom"
   "odoc" {with-doc}

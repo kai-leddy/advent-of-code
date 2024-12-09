@@ -11,44 +11,55 @@ let parse (input : string) : t =
 ;;
 
 let parse_all input = input |> List.map parse
-let operators = [ ( + ); ( * ) ]
 
-let operator_permutations (len : int) : (int -> int -> int) list list =
+let operator_permutations operators (len : int) : (int -> int -> int) list list
+    =
   let op_lists = ref [ [] ] in
   for _ = 0 to len - 1 do
-    let next_op_list = ref [ [] ] in
-    for j = 0 to List.length operators - 1 do
-      for k = 0 to List.length !op_lists - 1 do
-        next_op_list :=
-          (List.nth operators j :: List.nth !op_lists k) :: !next_op_list
-      done
-    done;
-    op_lists := !next_op_list
+    op_lists :=
+      !op_lists
+      |> List.map (fun opl -> operators |> List.map (fun o -> o :: opl))
+      |> List.flatten
   done;
   !op_lists
 ;;
 
-let check_equation ((res, ins) : t) : bool =
-  let perms = operator_permutations (List.length ins - 1) in
+let op_perms_cached ops =
+  let op_len_fun = operator_permutations ops in
+  CCCache.with_cache (CCCache.unbounded ~eq:( = ) 16) op_len_fun
+;;
+
+let check_equation get_op_perms ((res, ins) : t) : bool =
+  let perms = get_op_perms (List.length ins - 1) in
+  let ins = Array.of_list ins in
   let apply perm =
-    let sum = ref (List.nth ins 0) in
-    perm |> List.iteri (fun i op -> sum := op !sum (List.nth ins (i + 1)));
-    !sum
+    perm |> CCList.foldi (fun acc i op -> op acc ins.(i + 1)) ins.(0)
   in
-  let found = perms |> List.map apply |> List.find_opt (fun v -> v = res) in
+  let found = perms |> List.find_opt (fun p -> apply p = res) in
+  Printf.printf ".";
+  flush Stdlib.stdout;
   match found with Some _ -> true | None -> false
 ;;
 
 let part1 input =
+  let operators = [ ( + ); ( * ) ] in
   let eqs = parse_all input in
-  eqs |> Iter.of_list |> Iter.filter check_equation
+  let op_perms_of_len_cache = op_perms_cached operators in
+  eqs |> Iter.of_list
+  |> Iter.filter (check_equation op_perms_of_len_cache)
   |> Iter.map (fun (r, _) -> r)
   |> Iter.fold ( + ) 0 |> Printf.printf "\n%d\n"
 ;;
 
 let part2 input =
-  let len = string_of_int (0 - List.length input) in
-  Printf.printf "\n%s\n" len
+  let ( || ) a b = string_of_int a ^ string_of_int b |> int_of_string in
+  let operators = [ ( + ); ( * ); ( || ) ] in
+  let eqs = parse_all input in
+  let op_perms_of_len_cache = op_perms_cached operators in
+  eqs |> Iter.of_list
+  |> Iter.filter (check_equation op_perms_of_len_cache)
+  |> Iter.map (fun (r, _) -> r)
+  |> Iter.fold ( + ) 0 |> Printf.printf "\n%d\n"
 ;;
 
 let example =
