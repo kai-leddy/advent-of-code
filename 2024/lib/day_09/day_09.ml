@@ -19,7 +19,7 @@ let backward (diskmap : char array) : int option Iter.t =
   let index = ref (Array.length diskmap - 1) in
   let rem = ref (Utils.char_to_int diskmap.(!index)) in
   Iter.from_fun (fun () ->
-      if !index <= 0 then None
+      if !index < 0 then None
       else
         let v = if !index mod 2 = 0 then Some (Some !id) else Some None in
         decr rem;
@@ -43,7 +43,7 @@ let compacted (diskmap : char array) : int Iter.t =
   in
   fw
   |> Iter.mapi (fun i a ->
-         if i > !bi + 1 then None
+         if i + 1 > !bi then None
          else match a with Some n -> Some n | None -> nextb ())
   |> Iter.keep_some
 ;;
