@@ -3,9 +3,6 @@ const std = @import("std");
 const input = @embedFile("./input.txt");
 
 pub fn main() !void {
-    // Prints to stderr, ignoring potential errors.
-    std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
-
     const part1 = getPassword(input, false);
 
     std.debug.print("Part 1: {d}\n", .{part1});
