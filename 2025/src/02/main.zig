@@ -78,11 +78,28 @@ fn isRepeatedID(id: u64) bool {
     const asStr = std.fmt.bufPrint(&buf, "{}", .{id}) catch {
         return false;
     };
+    for (1..(asStr.len / 2) + 1) |char_count| {
+        // if the string length is not perfectly divisible by this character count
+        // then it cannot be perfectly repeating, so skip it
+        if (@rem(asStr.len, char_count) != 0) {
+            continue;
+        }
+        const repetitions = asStr.len / char_count;
+        const chars = asStr[0..char_count];
+        var match = true;
+        for (0..repetitions) |i| {
+            const start = i * char_count;
+            const slice = asStr[start..(start + char_count)];
 
-    const left = asStr[0..(asStr.len / 2)];
-    const right = asStr[(asStr.len / 2)..asStr.len];
-
-    return std.mem.eql(u8, left, right);
+            if (!std.mem.eql(u8, chars, slice)) {
+                match = false;
+            }
+        }
+        if (match) {
+            return true;
+        }
+    }
+    return false;
 }
 
 test "example - part 1" {
