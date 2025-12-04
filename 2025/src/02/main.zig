@@ -3,11 +3,11 @@ const std = @import("std");
 const input = @embedFile("./input.txt");
 
 pub fn main() !void {
-    const part1 = invalidIDTotal(input);
+    const part1 = invalidIDTotal(input, Method.doubled);
 
     std.debug.print("Part 1: {d}\n", .{part1});
 
-    const part2 = 0;
+    const part2 = invalidIDTotal(input, Method.repeated);
 
     std.debug.print("Part 2: {d}\n", .{part2});
 }
@@ -36,7 +36,9 @@ fn splitStringToRanges(str: []const u8) []const Range {
     return &final;
 }
 
-fn invalidIDTotal(comptime in: []const u8) u64 {
+const Method = enum { doubled, repeated };
+
+fn invalidIDTotal(comptime in: []const u8, method: Method) u64 {
     const ranges = comptime splitStringToRanges(in);
 
     var total: u64 = 0;
@@ -44,7 +46,11 @@ fn invalidIDTotal(comptime in: []const u8) u64 {
     for (ranges) |range| {
         for ((range.first)..(range.last + 1)) |x| {
             const id = @as(u64, @intCast(x));
-            if (isInvalidID(id)) {
+            const isInvalid = switch (method) {
+                Method.doubled => isDoubledID(id),
+                Method.repeated => isRepeatedID(id),
+            };
+            if (isInvalid) {
                 total += id;
             }
         }
@@ -53,7 +59,7 @@ fn invalidIDTotal(comptime in: []const u8) u64 {
     return total;
 }
 
-fn isInvalidID(id: u64) bool {
+fn isDoubledID(id: u64) bool {
     // unlikely that any of the numbers will be more than 64 digits
     var buf: [64]u8 = undefined;
     const asStr = std.fmt.bufPrint(&buf, "{}", .{id}) catch {
@@ -66,7 +72,25 @@ fn isInvalidID(id: u64) bool {
     return std.mem.eql(u8, left, right);
 }
 
-test "example" {
+fn isRepeatedID(id: u64) bool {
+    // unlikely that any of the numbers will be more than 64 digits
+    var buf: [64]u8 = undefined;
+    const asStr = std.fmt.bufPrint(&buf, "{}", .{id}) catch {
+        return false;
+    };
+
+    const left = asStr[0..(asStr.len / 2)];
+    const right = asStr[(asStr.len / 2)..asStr.len];
+
+    return std.mem.eql(u8, left, right);
+}
+
+test "example - part 1" {
     const ex = "11-22,95-115,998-1012,1188511880-1188511890,222220-222224,1698522-1698528,446443-446449,38593856-38593862,565653-565659,824824821-824824827,2121212118-2121212124";
-    try std.testing.expectEqual(@as(u64, 1227775554), invalidIDTotal(ex));
+    try std.testing.expectEqual(@as(u64, 1227775554), invalidIDTotal(ex, Method.doubled));
+}
+
+test "example - part 2" {
+    const ex = "11-22,95-115,998-1012,1188511880-1188511890,222220-222224,1698522-1698528,446443-446449,38593856-38593862,565653-565659,824824821-824824827,2121212118-2121212124";
+    try std.testing.expectEqual(@as(u64, 4174379265), invalidIDTotal(ex, Method.repeated));
 }
