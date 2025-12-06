@@ -2,17 +2,19 @@ const std = @import("std");
 
 const input = @embedFile("./input.txt");
 
+const Grid = []const []const u8;
+
 pub fn main() !void {
     const part1 = countAccessible(comptime parseGrid(input));
 
     std.debug.print("Part 1: {d}\n", .{part1});
 
-    const part2 = 0;
+    const part2 = countAllAccessible(comptime parseGrid(input)) catch 0;
 
     std.debug.print("Part 2: {d}\n", .{part2});
 }
 
-fn parseGrid(comptime in: []const u8) []const []const u8 {
+fn parseGrid(comptime in: []const u8) Grid {
     std.debug.assert(@inComptime()); // this function only seems to work at comptime
 
     @setEvalBranchQuota(100_000);
@@ -28,7 +30,7 @@ fn parseGrid(comptime in: []const u8) []const []const u8 {
     return &final;
 }
 
-fn countAdjacent(grid: []const []const u8, y: usize, x: usize) u32 {
+fn countAdjacent(grid: Grid, y: usize, x: usize) u32 {
     const maxY = grid.len - 1;
     const maxX = grid[0].len - 1;
     var count: u32 = 0;
@@ -43,13 +45,70 @@ fn countAdjacent(grid: []const []const u8, y: usize, x: usize) u32 {
     return count;
 }
 
-fn countAccessible(grid: []const []const u8) u32 {
+fn countAccessible(grid: Grid) u32 {
     var count: u32 = 0;
     for (grid, 0..) |row, y| {
         for (row, 0..) |cell, x| {
             if (cell != '@') continue;
             if (countAdjacent(grid, y, x) < 4) count += 1;
         }
+    }
+    return count;
+}
+
+/// `MutGrid` provides a mutable grid of `u8`s, backed by an `ArenaAllocator`.
+/// It can be initialized from an immutable `Grid` and must be deinitialized to free its memory.
+const MutGrid = struct {
+    grid: [][]u8,
+    arena: std.heap.ArenaAllocator,
+
+    /// Initializes a mutable grid from an immutable grid.
+    /// The mutable grid is allocated within an arena, and its contents are a deep copy of the original grid.
+    /// The arena is owned by the returned `MutGrid` and must be deinitialized when no longer needed.
+    fn init(allocator: std.mem.Allocator, orig: Grid) !MutGrid {
+        var arena = std.heap.ArenaAllocator.init(allocator);
+        const alloc = arena.allocator();
+        errdefer arena.deinit(); // Ensure arena is deinitialized if allocation fails
+
+        const slice: [][]u8 = try alloc.alloc([]u8, orig.len);
+        for (0..orig.len) |i| {
+            slice[i] = try alloc.alloc(u8, orig[i].len);
+            @memcpy(slice[i], orig[i]);
+        }
+
+        return MutGrid{
+            .grid = slice,
+            .arena = arena,
+        };
+    }
+    /// Deinitializes the grid's arena allocator.
+    fn deinit(self: *MutGrid) void {
+        self.arena.deinit();
+    }
+};
+
+fn countAllAccessible(grid: Grid) !u32 {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer std.debug.assert(gpa.deinit() == .ok);
+    const allocator = gpa.allocator();
+
+    var mutGrid = try MutGrid.init(allocator, grid);
+    defer mutGrid.deinit();
+
+    var count: u32 = 0;
+    loop: while (true) {
+        var taken: u32 = 0;
+        for (mutGrid.grid, 0..) |row, y| {
+            for (row, 0..) |cell, x| {
+                if (cell != '@') continue;
+                if (countAdjacent(mutGrid.grid, y, x) < 4) {
+                    count += 1;
+                    taken += 1;
+                    mutGrid.grid[y][x] = '.';
+                }
+            }
+        }
+        if (taken == 0) break :loop;
     }
     return count;
 }
@@ -70,4 +129,22 @@ test "example - part 1" {
     ;
     const grid = comptime parseGrid(ex);
     try std.testing.expectEqual(13, countAccessible(grid));
+}
+
+test "example - part 2" {
+    const ex =
+        \\..@@.@@@@.
+        \\@@@.@.@.@@
+        \\@@@@@.@.@@
+        \\@.@@@@..@.
+        \\@@.@@@@.@@
+        \\.@@@@@@@.@
+        \\.@.@.@.@@@
+        \\@.@@@.@@@@
+        \\.@@@@@@@@.
+        \\@.@.@@@.@.
+        \\
+    ;
+    const grid = comptime parseGrid(ex);
+    try std.testing.expectEqual(43, countAllAccessible(grid) catch 0);
 }
