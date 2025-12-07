@@ -130,10 +130,10 @@ fn parseInCols(comptime in: []const u8) []const Calculation {
 
         if (val) |v| {
             // just keep the value for later if no operator yet
-            val_staging[vals_for_op] = v;
+            val_staging[index] = v;
             vals_for_op += 1;
             if (op != ' ') {
-                const vals = val_staging[0..vals_for_op];
+                const vals = val_staging[index + 1 - vals_for_op .. index + 1];
                 values[op_index] = vals;
                 operators[op_index] = switch (op) {
                     '*' => Operator.mul,
@@ -188,5 +188,12 @@ test "example - part 2" {
         \\
     ;
     const in = comptime parseInCols(ex);
+    // for (in) |c| {
+    //     std.debug.print("{}: ", .{c.operator});
+    //     for (c.values) |v| {
+    //         std.debug.print("{d}, ", .{v});
+    //     }
+    //     std.debug.print("\n", .{});
+    // }
     try std.testing.expectEqual(3263827, completeWorksheet(in));
 }
