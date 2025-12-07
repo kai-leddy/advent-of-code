@@ -96,27 +96,62 @@ fn countFreshIngredients(in: Input) u32 {
     return count;
 }
 
-// TODO: refactor this with the following approach
-// count how many are in each range and add them up
-// loop through each range and count the overlap with each other range
-// remove the total amount of overlaps from the initial count
-fn totalFreshIngredientIDs(in: Input) u32 {
-    var smallestID: ID = std.math.maxInt(ID);
-    var largestID: ID = 0;
-    for (in.ranges) |range| {
-        if (range.min < smallestID) smallestID = range.min;
-        if (range.max > largestID) largestID = range.max;
-    }
-    var count: u32 = 0;
-    ids: for (smallestID..largestID + 1) |i| {
-        for (in.ranges) |range| {
-            if (range.includes(i)) {
-                count += 1;
-                continue :ids;
-            }
+fn calculateOverlapsWithRanges(range: Range, others: []const Range) u64 {
+    var overlaps: u64 = 0;
+    var mutRange: Range = range;
+    for (others, 0..) |other, o| {
+        // test for outside of range first
+        if (other.min > mutRange.max or other.max < mutRange.min) continue;
+        // test for o fully inside of range
+        if (other.min >= mutRange.min and other.max <= mutRange.max) {
+            overlaps += other.max - other.min + 1; // plus 1 because inclusive
+            // split into a before and after range and calculate with recursion
+            const before = Range{ .min = mutRange.min, .max = other.min - 1 };
+            const after = Range{ .min = other.max + 1, .max = mutRange.max };
+            const beforeOverlaps = calculateOverlapsWithRanges(before, others[o + 1 ..]);
+            const afterOverlaps = calculateOverlapsWithRanges(after, others[o + 1 ..]);
+            overlaps += beforeOverlaps + afterOverlaps;
+            break;
+        }
+        // test for range fully inside of o
+        else if (mutRange.min >= other.min and mutRange.max <= other.max) {
+            overlaps += mutRange.max - mutRange.min + 1; // plus 1 because inclusive
+            break;
+        }
+        // test right overlap
+        else if (other.min >= mutRange.min and other.min <= mutRange.max) {
+            overlaps += mutRange.max - other.min + 1;
+            mutRange = Range{ .min = mutRange.min, .max = other.min - 1 };
+        }
+        // test left overlap
+        else if (other.max <= mutRange.max and other.max >= mutRange.min) {
+            overlaps += other.max - mutRange.min + 1;
+            mutRange = Range{ .min = other.max + 1, .max = mutRange.max };
         }
     }
-    return count;
+
+    return overlaps;
+}
+
+fn totalFreshIngredientIDs(in: Input) u64 {
+    var totalAllRanges: u64 = 0;
+    for (in.ranges) |range| {
+        // plus 1 because ranges are inclusive
+        const total = range.max - range.min + 1;
+        // std.debug.print("TOTAL: {d}\n", .{total});
+        totalAllRanges += total;
+    }
+    // std.debug.print("TOTAL TOTAL: {d}\n", .{totalAllRanges});
+    var overlaps: u64 = 0;
+    for (in.ranges, 0..) |range, i| {
+        // plus 1 because ranges are inclusive
+        const overlap = calculateOverlapsWithRanges(range, in.ranges[i + 1 ..]);
+        // std.debug.print("OVERLAP: {d}\n", .{overlap});
+        overlaps += overlap;
+    }
+    // std.debug.print("TOTAL OVERLAP: {d}\n", .{overlaps});
+
+    return totalAllRanges - overlaps;
 }
 
 test "example - part 1" {
@@ -153,4 +188,29 @@ test "example - part 2" {
         \\
     ;
     try std.testing.expectEqual(14, totalFreshIngredientIDs(comptime parse(ex)));
+}
+
+test "overlap calculations" {
+    const eql = std.testing.expectEqual;
+    try eql(2, calculateOverlapsWithRanges(.{ .min = 10, .max = 20 }, &.{.{ .min = 15, .max = 16 }}));
+    try eql(2, calculateOverlapsWithRanges(.{ .min = 15, .max = 16 }, &.{.{ .min = 10, .max = 20 }}));
+    try eql(1, calculateOverlapsWithRanges(.{ .min = 10, .max = 20 }, &.{.{ .min = 6, .max = 10 }}));
+    try eql(2, calculateOverlapsWithRanges(.{ .min = 10, .max = 20 }, &.{.{ .min = 6, .max = 11 }}));
+    try eql(1, calculateOverlapsWithRanges(.{ .min = 10, .max = 20 }, &.{.{ .min = 20, .max = 34 }}));
+    try eql(2, calculateOverlapsWithRanges(.{ .min = 10, .max = 20 }, &.{.{ .min = 19, .max = 34 }}));
+    try eql(11, calculateOverlapsWithRanges(.{ .min = 10, .max = 20 }, &.{.{ .min = 10, .max = 20 }}));
+
+    // now test with multiple ranges
+    try eql(8, calculateOverlapsWithRanges(.{ .min = 10, .max = 20 }, &.{ .{ .min = 5, .max = 15 }, .{ .min = 19, .max = 35 } }));
+    try eql(11, calculateOverlapsWithRanges(.{ .min = 10, .max = 20 }, &.{ .{ .min = 5, .max = 15 }, .{ .min = 19, .max = 35 }, .{ .min = 0, .max = 100 } }));
+}
+
+test "total fresh ingredients" {
+    const eql = std.testing.expectEqual;
+    const in = Input{
+        .ids = &.{},
+        .ranges = &.{ .{ .min = 10, .max = 20 }, .{ .min = 13, .max = 16 }, .{ .min = 5, .max = 15 }, .{ .min = 19, .max = 35 }, .{ .min = 0, .max = 100 } },
+    };
+
+    try eql(101, totalFreshIngredientIDs(in));
 }
