@@ -8,7 +8,7 @@ pub fn main() !void {
 
     std.debug.print("Part 1: {d}\n", .{part1});
 
-    const part2 = 0;
+    const part2 = totalFreshIngredientIDs(in);
 
     std.debug.print("Part 2: {d}\n", .{part2});
 }
@@ -46,7 +46,7 @@ fn parse(comptime in: []const u8) Input {
     const sections = comptime splitSections(in);
     const range_lines = sections[0];
     const id_lines = sections[1];
-    const range_len = comptime std.mem.count(u8, range_lines, &[_]u8{'\n'});
+    const range_len = comptime std.mem.count(u8, range_lines, &[_]u8{'\n'}) + 1;
     var range_iter = std.mem.tokenizeScalar(
         u8,
         range_lines,
@@ -96,6 +96,29 @@ fn countFreshIngredients(in: Input) u32 {
     return count;
 }
 
+// TODO: refactor this with the following approach
+// count how many are in each range and add them up
+// loop through each range and count the overlap with each other range
+// remove the total amount of overlaps from the initial count
+fn totalFreshIngredientIDs(in: Input) u32 {
+    var smallestID: ID = std.math.maxInt(ID);
+    var largestID: ID = 0;
+    for (in.ranges) |range| {
+        if (range.min < smallestID) smallestID = range.min;
+        if (range.max > largestID) largestID = range.max;
+    }
+    var count: u32 = 0;
+    ids: for (smallestID..largestID + 1) |i| {
+        for (in.ranges) |range| {
+            if (range.includes(i)) {
+                count += 1;
+                continue :ids;
+            }
+        }
+    }
+    return count;
+}
+
 test "example - part 1" {
     const ex =
         \\3-5
@@ -112,4 +135,22 @@ test "example - part 1" {
         \\
     ;
     try std.testing.expectEqual(3, countFreshIngredients(comptime parse(ex)));
+}
+
+test "example - part 2" {
+    const ex =
+        \\3-5
+        \\10-14
+        \\16-20
+        \\12-18
+        \\
+        \\1
+        \\5
+        \\8
+        \\11
+        \\17
+        \\32
+        \\
+    ;
+    try std.testing.expectEqual(14, totalFreshIngredientIDs(comptime parse(ex)));
 }
