@@ -10,11 +10,12 @@ pub fn main() !void {
     const allocator = gpa.allocator();
 
     const grid = comptime parseGrid(input);
-    const part1 = try countBeamSplits(allocator, grid);
+    const res = try simulateTachyonBeams(allocator, grid);
+    const part1 = res.splits;
 
     std.debug.print("Part 1: {d}\n", .{part1});
 
-    const part2 = 0;
+    const part2 = res.paths;
 
     std.debug.print("Part 2: {d}\n", .{part2});
 }
@@ -66,27 +67,26 @@ const MutGrid = struct {
     }
 };
 
-const BeamSplitCounter = struct {
-    count: u32,
-    pub fn increment(self: *BeamSplitCounter) void {
-        self.count += 1;
-    }
-};
-
-fn countBeamSplits(allocator: std.mem.Allocator, grid: Grid) !u32 {
-    var counter = BeamSplitCounter{ .count = 0 };
-    try simulateTachyonBeams(allocator, grid, &counter);
-    return counter.count;
-}
-
 const Coord = struct { y: usize, x: usize };
 
-fn simulateTachyonBeams(allocator: std.mem.Allocator, grid: Grid, splitCounter: *BeamSplitCounter) !void {
+const Result = struct {
+    splits: u32,
+    paths: u32,
+};
+
+fn simulateTachyonBeams(allocator: std.mem.Allocator, grid: Grid) !Result {
     var mutGrid = try MutGrid.init(allocator, grid);
     defer mutGrid.deinit();
 
     const start = std.mem.indexOfScalar(u8, grid[0], 'S').?;
     mutGrid.grid[0][start] = '|';
+
+    var nodes = std.AutoHashMap([2]usize, void).init(allocator);
+    defer nodes.deinit();
+    // TODO: change the implementation to traverse paths individually and track them
+    // rather than trying to iterate the grid itself (e.g. a depth/breadth first search)
+
+    var paths: u32 = 0;
 
     for (mutGrid.grid, 0..) |row, y| {
         // don't bother processing the last row
@@ -101,9 +101,11 @@ fn simulateTachyonBeams(allocator: std.mem.Allocator, grid: Grid, splitCounter: 
                         '|' => continue,
                         '.' => mutGrid.grid[y + 1][x] = '|',
                         '^' => {
+                            if (mutGrid.grid[y + 1][x - 1] != '|') paths += 1;
+                            if (mutGrid.grid[y + 1][x + 1] != '|') paths += 1;
                             mutGrid.grid[y + 1][x - 1] = '|';
                             mutGrid.grid[y + 1][x + 1] = '|';
-                            splitCounter.increment();
+                            try nodes.put(.{ y, x }, {});
                         },
                         else => unreachable,
                     }
@@ -112,6 +114,8 @@ fn simulateTachyonBeams(allocator: std.mem.Allocator, grid: Grid, splitCounter: 
             }
         }
     }
+
+    return Result{ .splits = nodes.count(), .paths = paths };
 }
 
 test "example - part 1" {
@@ -135,5 +139,31 @@ test "example - part 1" {
         \\
     ;
     const grid = comptime parseGrid(ex);
-    try std.testing.expectEqual(21, countBeamSplits(std.testing.allocator, grid));
+    const res = try simulateTachyonBeams(std.testing.allocator, grid);
+    try std.testing.expectEqual(21, res.splits);
+}
+
+test "example - part 2" {
+    const ex =
+        \\.......S.......
+        \\...............
+        \\.......^.......
+        \\...............
+        \\......^.^......
+        \\...............
+        \\.....^.^.^.....
+        \\...............
+        \\....^.^...^....
+        \\...............
+        \\...^.^...^.^...
+        \\...............
+        \\..^...^.....^..
+        \\...............
+        \\.^.^.^.^.^...^.
+        \\...............
+        \\
+    ;
+    const grid = comptime parseGrid(ex);
+    const res = try simulateTachyonBeams(std.testing.allocator, grid);
+    try std.testing.expectEqual(40, res.paths);
 }
