@@ -20,6 +20,13 @@ pub fn main() !void {
     std.debug.print("Part 2: {d}\n", .{part2});
 }
 
+/// Parses a grid from a multiline string literal at comptime.
+///
+/// Panics:
+///   - If the input string is empty or ill-formed (e.g., missing newlines).
+///   - If `std.mem.tokenizeScalar` or `std.mem.count` exceed the evaluation branch quota.
+///
+/// Note: This function is specifically designed for `comptime` execution.
 fn parseGrid(comptime in: []const u8) Grid {
     std.debug.assert(@inComptime()); // this function only seems to work at comptime
 
@@ -67,62 +74,94 @@ const MutGrid = struct {
     }
 };
 
-const Coord = struct { y: usize, x: usize };
+const Coord = [2]usize;
 
 const Result = struct {
     splits: u32,
     paths: u32,
 };
 
-const Path = struct { done: bool, splits: []Coord };
+const Path = struct {
+    allocator: std.mem.Allocator,
+    done: bool = false,
+    coords: std.ArrayList(Coord),
+
+    fn init(allocator: std.mem.Allocator, capacity: usize, start: Coord) !Path {
+        var coords = try std.ArrayList(Coord).initCapacity(allocator, capacity);
+        coords.appendAssumeCapacity(start);
+        return Path{
+            .allocator = allocator,
+            .coords = coords,
+        };
+    }
+
+    fn split(self: Path) !Path {
+        return Path{
+            .allocator = self.allocator,
+            .done = self.done,
+            .coords = try self.coords.clone(self.allocator),
+        };
+    }
+
+    fn deinit(self: *Path) void {
+        self.coords.deinit(self.allocator);
+    }
+};
+
+/// Returns the next available path that has not been marked as done.
+/// Returns null if all paths are done.
+fn nextPath(paths: []Path) ?*Path {
+    for (paths, 0..) |*path, i| {
+        if (!path.done) {
+            std.debug.print("Exploring path {d}", .{i});
+            return path;
+        }
+    }
+    return null;
+}
 
 fn simulateTachyonBeams(allocator: std.mem.Allocator, grid: Grid) !Result {
-    var mutGrid = try MutGrid.init(allocator, grid);
-    defer mutGrid.deinit();
-
-    const start = std.mem.indexOfScalar(u8, grid[0], 'S').?;
-    mutGrid.grid[0][start] = '|';
-
-    var nodes = std.AutoHashMap(Coord, void).init(allocator);
-    defer nodes.deinit();
-    // TODO: change the implementation to traverse paths individually and track them
-    // rather than trying to iterate the grid itself (e.g. a depth/breadth first search)
-
+    var splitters = std.AutoHashMap(Coord, void).init(allocator);
+    defer splitters.deinit();
     var paths = try std.ArrayList(Path).initCapacity(allocator, 1);
     defer paths.deinit(allocator);
 
-    for (mutGrid.grid, 0..) |row, y| {
-        // don't bother processing the last row
-        if (y + 1 >= mutGrid.grid.len) break;
-        for (row, 0..) |cell, x| {
-            switch (cell) {
-                '.' => continue,
-                '^' => continue,
-                '|' => {
-                    const below = mutGrid.grid[y + 1][x];
-                    switch (below) {
-                        '|' => continue,
-                        '.' => mutGrid.grid[y + 1][x] = '|',
-                        '^' => {
-                            if (mutGrid.grid[y + 1][x - 1] != '|') {
-                                try paths.append(allocator, .{ .done = false, .splits = undefined });
-                            }
-                            if (mutGrid.grid[y + 1][x + 1] != '|') {
-                                try paths.append(allocator, .{ .done = false, .splits = undefined });
-                            }
-                            mutGrid.grid[y + 1][x - 1] = '|';
-                            mutGrid.grid[y + 1][x + 1] = '|';
-                            try nodes.put(.{ .y = y, .x = x }, {});
-                        },
-                        else => unreachable,
-                    }
-                },
-                else => unreachable,
-            }
+    // setup the first path
+    const start = std.mem.indexOfScalar(u8, grid[0], 'S').?;
+    const first = try Path.init(allocator, grid.len, Coord{ 0, start });
+    try paths.append(allocator, first);
+
+    // keep going while we have unfinished paths
+    while (nextPath(paths.items)) |path| {
+        const y, const x = path.coords.getLast();
+        std.debug.print(" at ({d}, {d})\n", .{ y, x });
+        // if off the bottom, then this path is done
+        if (y + 1 >= grid.len) {
+            path.done = true;
+            path.deinit();
+            continue;
+        }
+        // otherwise check the location below
+        const below = grid[y + 1][x];
+        switch (below) {
+            '^' => { // handle splitter
+                try splitters.put(.{ y + 1, x }, {});
+                path.coords.appendAssumeCapacity(.{ y + 1, x });
+                // create a new path for the right
+                var right = try path.split();
+                right.coords.appendAssumeCapacity(.{ y + 2, x + 1 });
+                // keep the left path
+                path.coords.appendAssumeCapacity(.{ y + 2, x - 1 });
+                // append the new path last, as append will invalidate the `path` pointer
+                try paths.append(allocator, right);
+            },
+            else => { // handle anything else
+                path.coords.appendAssumeCapacity(.{ y + 1, x });
+            },
         }
     }
 
-    return Result{ .splits = nodes.count(), .paths = @intCast(paths.items.len) };
+    return Result{ .splits = splitters.count(), .paths = @intCast(paths.items.len) };
 }
 
 test "example - part 1" {
