@@ -3,7 +3,9 @@ const std = @import("std");
 const input = @embedFile("./input.txt");
 
 pub fn main() !void {
-    const part1 = 0;
+    const boxes = comptime parseJBoxes(input);
+
+    const part1 = multLargest3Circuits(boxes);
 
     std.debug.print("Part 1: {d}\n", .{part1});
 
@@ -12,6 +14,105 @@ pub fn main() !void {
     std.debug.print("Part 2: {d}\n", .{part2});
 }
 
-test "example" {
-    try std.testing.expectEqual(true, true);
+const JBox = struct {
+    id: u32,
+    x: u32,
+    y: u32,
+    z: u32,
+    distTo: []const f64,
+};
+
+fn parseJBoxes(comptime in: []const u8) []const JBox {
+    std.debug.assert(@inComptime()); // this function only seems to work at comptime
+
+    @setEvalBranchQuota(100_000);
+    const len = comptime std.mem.count(u8, in, &[_]u8{'\n'});
+    @setEvalBranchQuota(len * 10_000);
+    var iter = std.mem.tokenizeScalar(u8, in, '\n');
+    var boxes: [len]JBox = undefined;
+    for (0..len) |i| {
+        const line = iter.next().?;
+        var line_iter = std.mem.tokenizeScalar(u8, line, ',');
+        boxes[i] = JBox{
+            .id = i,
+            .x = try std.fmt.parseInt(u32, line_iter.next().?, 10),
+            .y = try std.fmt.parseInt(u32, line_iter.next().?, 10),
+            .z = try std.fmt.parseInt(u32, line_iter.next().?, 10),
+            .distTo = undefined,
+        };
+    }
+    // calculate distances
+    for (0..len) |i| {
+        var dists: [len]f64 = undefined;
+        for (0..len) |j| {
+            if (i == j) {
+                dists[j] = 0;
+            } else {
+                dists[j] = distanceBetween(boxes[i], boxes[j]);
+            }
+        }
+        const d = dists;
+        boxes[i].distTo = &d;
+    }
+    // copy mutable slice to a const to return from comptime
+    const final = boxes;
+    return &final;
+}
+
+fn distanceBetween(a: JBox, b: JBox) f64 {
+    const dx = @as(i64, a.x) - b.x;
+    const dy = @as(i64, a.y) - b.y;
+    const dz = @as(i64, a.z) - b.z;
+    const dist = @sqrt(@as(f64, @floatFromInt(dx * dx)) + @as(f64, @floatFromInt(dy * dy)) + @as(f64, @floatFromInt(dz * dz)));
+    return dist;
+}
+
+fn multLargest3Circuits(comptime boxes: []const JBox) u64 {
+    var smallest: struct { usize, usize } = .{ 0, boxes.len - 1 };
+    for (boxes, 0..) |box, i| {
+        // sort distances descending
+        for (box.distTo, 0..) |d, j| {
+            if (d < boxes[smallest[0]].distTo[smallest[1]] and i != j) {
+                smallest = .{ i, j };
+            }
+        }
+    }
+    std.debug.print("Smallest: ({d},{d},{d}) -> ({d},{d},{d}) == {d}\n", .{
+        boxes[smallest[0]].x,
+        boxes[smallest[0]].y,
+        boxes[smallest[0]].z,
+        boxes[smallest[1]].x,
+        boxes[smallest[1]].y,
+        boxes[smallest[1]].z,
+        boxes[smallest[0]].distTo[smallest[1]],
+    });
+    return 0;
+}
+
+test "example - part 1" {
+    const ex =
+        \\162,817,812
+        \\57,618,57
+        \\906,360,560
+        \\592,479,940
+        \\352,342,300
+        \\466,668,158
+        \\542,29,236
+        \\431,825,988
+        \\739,650,466
+        \\52,470,668
+        \\216,146,977
+        \\819,987,18
+        \\117,168,530
+        \\805,96,715
+        \\346,949,466
+        \\970,615,88
+        \\941,993,340
+        \\862,61,35
+        \\984,92,344
+        \\425,690,689
+        \\
+    ;
+    const boxes = comptime parseJBoxes(ex);
+    try std.testing.expectEqual(40, multLargest3Circuits(boxes));
 }
