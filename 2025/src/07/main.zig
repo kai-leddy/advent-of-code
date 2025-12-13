@@ -82,21 +82,9 @@ const Result = struct {
 };
 
 const Path = struct {
-    done: bool = false,
+    depth: u32 = 0,
     pos: Coord,
 };
-
-/// Returns the next available path that has not been marked as done.
-/// Returns null if all paths are done.
-fn nextPath(paths: []Path) ?*Path {
-    for (paths, 0..) |*path, i| {
-        if (!path.done) {
-            std.debug.print("Exploring path {d}", .{i});
-            return path;
-        }
-    }
-    return null;
-}
 
 fn simulateTachyonBeams(allocator: std.mem.Allocator, grid: Grid) !Result {
     var splitters = std.AutoHashMap(Coord, void).init(allocator);
@@ -106,37 +94,44 @@ fn simulateTachyonBeams(allocator: std.mem.Allocator, grid: Grid) !Result {
 
     // setup the first path
     const start = std.mem.indexOfScalar(u8, grid[0], 'S').?;
-    const first = Path{ .pos = Coord{ 0, start } };
+    const first = Path{
+        .pos = Coord{ 0, start },
+    };
     try paths.append(allocator, first);
 
+    var path_count: u32 = 1;
+
     // keep going while we have unfinished paths
-    while (nextPath(paths.items)) |path| {
-        const y, const x = path.pos;
-        std.debug.print(" at ({d}, {d})\n", .{ y, x });
-        // if off the bottom, then this path is done
-        if (y + 1 >= grid.len) {
-            path.done = true;
-            continue;
-        }
-        // otherwise check the location below
-        const below = grid[y + 1][x];
-        switch (below) {
-            '^' => { // handle splitter
-                try splitters.put(.{ y + 1, x }, {});
-                // keep the left path
-                path.pos = Coord{ y + 2, x - 1 };
-                // create a new path for the right
-                const right = Path{ .pos = Coord{ y + 2, x + 1 } };
-                // append the new path last, as append will invalidate the `path` pointer
-                try paths.append(allocator, right);
-            },
-            else => { // handle anything else
-                path.pos = Coord{ y + 1, x };
-            },
+    while (paths.items.len > 0) {
+        var path = paths.swapRemove(0);
+        std.debug.print("paths {d} depth {d} \n", .{ path_count, path.depth });
+        while (path.pos[0] < grid.len - 1) {
+            const y, const x = path.pos;
+            const below = grid[y + 1][x];
+            switch (below) {
+                '^' => { // handle splitter
+                    try splitters.put(.{ y + 1, x }, {});
+                    // keep the left path
+                    path.pos = Coord{ y + 2, x - 1 };
+                    path.depth += 2;
+                    // create a new path for the right
+                    path_count += 1;
+                    const right = Path{
+                        .pos = Coord{ y + 2, x + 1 },
+                        .depth = path.depth,
+                    };
+                    // append the new path last, as append will invalidate the `path` pointer
+                    try paths.append(allocator, right);
+                },
+                else => { // handle anything else
+                    path.pos = Coord{ y + 1, x };
+                    path.depth += 1;
+                },
+            }
         }
     }
 
-    return Result{ .splits = splitters.count(), .paths = @intCast(paths.items.len) };
+    return Result{ .splits = splitters.count(), .paths = path_count };
 }
 
 test "example - part 1" {
