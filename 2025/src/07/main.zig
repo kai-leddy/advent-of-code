@@ -74,6 +74,8 @@ const Result = struct {
     paths: u32,
 };
 
+const Path = struct { done: bool, splits: []Coord };
+
 fn simulateTachyonBeams(allocator: std.mem.Allocator, grid: Grid) !Result {
     var mutGrid = try MutGrid.init(allocator, grid);
     defer mutGrid.deinit();
@@ -81,12 +83,13 @@ fn simulateTachyonBeams(allocator: std.mem.Allocator, grid: Grid) !Result {
     const start = std.mem.indexOfScalar(u8, grid[0], 'S').?;
     mutGrid.grid[0][start] = '|';
 
-    var nodes = std.AutoHashMap([2]usize, void).init(allocator);
+    var nodes = std.AutoHashMap(Coord, void).init(allocator);
     defer nodes.deinit();
     // TODO: change the implementation to traverse paths individually and track them
     // rather than trying to iterate the grid itself (e.g. a depth/breadth first search)
 
-    var paths: u32 = 0;
+    var paths = try std.ArrayList(Path).initCapacity(allocator, 1);
+    defer paths.deinit(allocator);
 
     for (mutGrid.grid, 0..) |row, y| {
         // don't bother processing the last row
@@ -101,11 +104,15 @@ fn simulateTachyonBeams(allocator: std.mem.Allocator, grid: Grid) !Result {
                         '|' => continue,
                         '.' => mutGrid.grid[y + 1][x] = '|',
                         '^' => {
-                            if (mutGrid.grid[y + 1][x - 1] != '|') paths += 1;
-                            if (mutGrid.grid[y + 1][x + 1] != '|') paths += 1;
+                            if (mutGrid.grid[y + 1][x - 1] != '|') {
+                                try paths.append(allocator, .{ .done = false, .splits = undefined });
+                            }
+                            if (mutGrid.grid[y + 1][x + 1] != '|') {
+                                try paths.append(allocator, .{ .done = false, .splits = undefined });
+                            }
                             mutGrid.grid[y + 1][x - 1] = '|';
                             mutGrid.grid[y + 1][x + 1] = '|';
-                            try nodes.put(.{ y, x }, {});
+                            try nodes.put(.{ .y = y, .x = x }, {});
                         },
                         else => unreachable,
                     }
@@ -115,7 +122,7 @@ fn simulateTachyonBeams(allocator: std.mem.Allocator, grid: Grid) !Result {
         }
     }
 
-    return Result{ .splits = nodes.count(), .paths = paths };
+    return Result{ .splits = nodes.count(), .paths = @intCast(paths.items.len) };
 }
 
 test "example - part 1" {
