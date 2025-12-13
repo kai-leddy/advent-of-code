@@ -82,30 +82,8 @@ const Result = struct {
 };
 
 const Path = struct {
-    allocator: std.mem.Allocator,
     done: bool = false,
-    coords: std.ArrayList(Coord),
-
-    fn init(allocator: std.mem.Allocator, capacity: usize, start: Coord) !Path {
-        var coords = try std.ArrayList(Coord).initCapacity(allocator, capacity);
-        coords.appendAssumeCapacity(start);
-        return Path{
-            .allocator = allocator,
-            .coords = coords,
-        };
-    }
-
-    fn split(self: Path) !Path {
-        return Path{
-            .allocator = self.allocator,
-            .done = self.done,
-            .coords = try self.coords.clone(self.allocator),
-        };
-    }
-
-    fn deinit(self: *Path) void {
-        self.coords.deinit(self.allocator);
-    }
+    pos: Coord,
 };
 
 /// Returns the next available path that has not been marked as done.
@@ -128,17 +106,16 @@ fn simulateTachyonBeams(allocator: std.mem.Allocator, grid: Grid) !Result {
 
     // setup the first path
     const start = std.mem.indexOfScalar(u8, grid[0], 'S').?;
-    const first = try Path.init(allocator, grid.len, Coord{ 0, start });
+    const first = Path{ .pos = Coord{ 0, start } };
     try paths.append(allocator, first);
 
     // keep going while we have unfinished paths
     while (nextPath(paths.items)) |path| {
-        const y, const x = path.coords.getLast();
+        const y, const x = path.pos;
         std.debug.print(" at ({d}, {d})\n", .{ y, x });
         // if off the bottom, then this path is done
         if (y + 1 >= grid.len) {
             path.done = true;
-            path.deinit();
             continue;
         }
         // otherwise check the location below
@@ -146,17 +123,15 @@ fn simulateTachyonBeams(allocator: std.mem.Allocator, grid: Grid) !Result {
         switch (below) {
             '^' => { // handle splitter
                 try splitters.put(.{ y + 1, x }, {});
-                path.coords.appendAssumeCapacity(.{ y + 1, x });
-                // create a new path for the right
-                var right = try path.split();
-                right.coords.appendAssumeCapacity(.{ y + 2, x + 1 });
                 // keep the left path
-                path.coords.appendAssumeCapacity(.{ y + 2, x - 1 });
+                path.pos = Coord{ y + 2, x - 1 };
+                // create a new path for the right
+                const right = Path{ .pos = Coord{ y + 2, x + 1 } };
                 // append the new path last, as append will invalidate the `path` pointer
                 try paths.append(allocator, right);
             },
             else => { // handle anything else
-                path.coords.appendAssumeCapacity(.{ y + 1, x });
+                path.pos = Coord{ y + 1, x };
             },
         }
     }
