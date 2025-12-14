@@ -67,24 +67,49 @@ fn distanceBetween(a: JBox, b: JBox) f64 {
     return dist;
 }
 
-fn multLargest3Circuits(comptime boxes: []const JBox) u64 {
-    var smallest: struct { usize, usize } = .{ 0, boxes.len - 1 };
-    for (boxes, 0..) |box, i| {
-        // sort distances descending
-        for (box.distTo, 0..) |d, j| {
-            if (d < boxes[smallest[0]].distTo[smallest[1]] and i != j) {
-                smallest = .{ i, j };
-            }
+const Connection = struct {
+    a: usize,
+    b: usize,
+    distance: f64,
+};
+
+fn connCompare(ctx: void, a: Connection, b: Connection) bool {
+    _ = ctx;
+    return a.distance < b.distance;
+}
+
+fn getAllConnectionsByDistance(comptime boxes: []const JBox) []const Connection {
+    const conn_count = boxes.len * (boxes.len - 1) / 2;
+    var connections: [conn_count]Connection = undefined;
+    var index: usize = 0;
+    for (boxes, 0..) |box_a, i| {
+        for (i + 1..boxes.len) |j| {
+            connections[index] = Connection{
+                .a = i,
+                .b = j,
+                .distance = box_a.distTo[j],
+            };
+            index += 1;
         }
     }
+    std.sort.block(Connection, &connections, {}, connCompare);
+    const final = connections;
+    return &final;
+}
+
+fn multLargest3Circuits(comptime boxes: []const JBox) u64 {
+    const connections = comptime getAllConnectionsByDistance(boxes);
+
+    const smallest: Connection = connections[0];
+
     std.debug.print("Smallest: ({d},{d},{d}) -> ({d},{d},{d}) == {d}\n", .{
-        boxes[smallest[0]].x,
-        boxes[smallest[0]].y,
-        boxes[smallest[0]].z,
-        boxes[smallest[1]].x,
-        boxes[smallest[1]].y,
-        boxes[smallest[1]].z,
-        boxes[smallest[0]].distTo[smallest[1]],
+        boxes[smallest.a].x,
+        boxes[smallest.a].y,
+        boxes[smallest.a].z,
+        boxes[smallest.b].x,
+        boxes[smallest.b].y,
+        boxes[smallest.b].z,
+        smallest.distance,
     });
     return 0;
 }
