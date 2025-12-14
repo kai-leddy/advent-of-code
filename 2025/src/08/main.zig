@@ -18,8 +18,10 @@ pub fn main() !void {
     std.debug.print("Part 2: {d}\n", .{part2});
 }
 
+const ID = usize;
+
 const JBox = struct {
-    id: u32,
+    id: ID,
     x: u32,
     y: u32,
     z: u32,
@@ -72,8 +74,8 @@ fn distanceBetween(a: JBox, b: JBox) f64 {
 }
 
 const Connection = struct {
-    a: usize,
-    b: usize,
+    a: ID,
+    b: ID,
     distance: f64,
 };
 
@@ -101,7 +103,7 @@ fn getAllConnectionsByDistance(comptime boxes: []const JBox) []const Connection 
     return &final;
 }
 
-const UsedConns = std.AutoHashMap([2]usize, void);
+const UsedConns = std.AutoHashMap([2]ID, void);
 
 fn smallestUnusedConnection(used: *UsedConns, connections: []const Connection) !?Connection {
     for (connections) |conn| {
@@ -113,26 +115,54 @@ fn smallestUnusedConnection(used: *UsedConns, connections: []const Connection) !
     return null;
 }
 
-fn multLargest3Circuits(allocator: std.mem.Allocator, comptime boxes: []const JBox, conn_count: comptime_int) !u64 {
+const Circuit = std.ArrayList(ID);
+
+fn circuitCompare(ctx: void, a: Circuit, b: Circuit) bool {
+    _ = ctx;
+    return a.items.len > b.items.len;
+}
+
+fn multLargest3Circuits(_allocator: std.mem.Allocator, comptime boxes: []const JBox, conn_count: comptime_int) !u64 {
     const connections = comptime getAllConnectionsByDistance(boxes);
 
+    var arena = std.heap.ArenaAllocator.init(_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+
     var used = UsedConns.init(allocator);
-    defer used.deinit();
+    var circuits = try std.ArrayList(Circuit).initCapacity(allocator, 1);
 
     for (0..conn_count) |_| {
         const conn = (try smallestUnusedConnection(&used, connections)).?;
-        std.debug.print("Smallest: ({d},{d},{d}) -> ({d},{d},{d}) == {d}\n", .{
-            boxes[conn.a].x,
-            boxes[conn.a].y,
-            boxes[conn.a].z,
-            boxes[conn.b].x,
-            boxes[conn.b].y,
-            boxes[conn.b].z,
-            conn.distance,
-        });
+        const inCircuit = checkCircuits: for (circuits.items) |*circuit| {
+            for (circuit.items) |id| {
+                if (conn.a == id) {
+                    try circuit.append(allocator, conn.b);
+                    break :checkCircuits true;
+                }
+                if (conn.b == id) {
+                    try circuit.append(allocator, conn.a);
+                    break :checkCircuits true;
+                }
+            }
+        } else false;
+        if (!inCircuit) {
+            var new_circuit = try Circuit.initCapacity(allocator, 2);
+            try new_circuit.append(allocator, conn.a);
+            try new_circuit.append(allocator, conn.b);
+            try circuits.append(allocator, new_circuit);
+        }
     }
 
-    return 0;
+    std.sort.block(Circuit, circuits.items, {}, circuitCompare);
+
+    var mult: u64 = 1;
+    for (0..3) |i| {
+        const circuit = circuits.items[i];
+        mult *= circuit.items.len;
+    }
+
+    return mult;
 }
 
 test "example - part 1" {
