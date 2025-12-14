@@ -3,9 +3,13 @@ const std = @import("std");
 const input = @embedFile("./input.txt");
 
 pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer std.debug.assert(gpa.deinit() == .ok);
+    const allocator = gpa.allocator();
+
     const boxes = comptime parseJBoxes(input);
 
-    const part1 = multLargest3Circuits(boxes);
+    const part1 = try multLargest3Circuits(allocator, boxes, 1000);
 
     std.debug.print("Part 1: {d}\n", .{part1});
 
@@ -97,20 +101,37 @@ fn getAllConnectionsByDistance(comptime boxes: []const JBox) []const Connection 
     return &final;
 }
 
-fn multLargest3Circuits(comptime boxes: []const JBox) u64 {
+const UsedConns = std.AutoHashMap([2]usize, void);
+
+fn smallestUnusedConnection(used: *UsedConns, connections: []const Connection) !?Connection {
+    for (connections) |conn| {
+        if (!used.contains(.{ conn.a, conn.b })) {
+            try used.put(.{ conn.a, conn.b }, {});
+            return conn;
+        }
+    }
+    return null;
+}
+
+fn multLargest3Circuits(allocator: std.mem.Allocator, comptime boxes: []const JBox, conn_count: comptime_int) !u64 {
     const connections = comptime getAllConnectionsByDistance(boxes);
 
-    const smallest: Connection = connections[0];
+    var used = UsedConns.init(allocator);
+    defer used.deinit();
 
-    std.debug.print("Smallest: ({d},{d},{d}) -> ({d},{d},{d}) == {d}\n", .{
-        boxes[smallest.a].x,
-        boxes[smallest.a].y,
-        boxes[smallest.a].z,
-        boxes[smallest.b].x,
-        boxes[smallest.b].y,
-        boxes[smallest.b].z,
-        smallest.distance,
-    });
+    for (0..conn_count) |_| {
+        const conn = (try smallestUnusedConnection(&used, connections)).?;
+        std.debug.print("Smallest: ({d},{d},{d}) -> ({d},{d},{d}) == {d}\n", .{
+            boxes[conn.a].x,
+            boxes[conn.a].y,
+            boxes[conn.a].z,
+            boxes[conn.b].x,
+            boxes[conn.b].y,
+            boxes[conn.b].z,
+            conn.distance,
+        });
+    }
+
     return 0;
 }
 
@@ -138,6 +159,7 @@ test "example - part 1" {
         \\425,690,689
         \\
     ;
+    const allocator = std.testing.allocator;
     const boxes = comptime parseJBoxes(ex);
-    try std.testing.expectEqual(40, multLargest3Circuits(boxes));
+    try std.testing.expectEqual(40, try multLargest3Circuits(allocator, boxes, 10));
 }
